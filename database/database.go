@@ -32,7 +32,12 @@ func ConnectDb(dsn string) {
 	db.Logger = logger.Default.LogMode(logger.Info)
 
 	log.Println("running migrations")
-	db.AutoMigrate(&models.Fact{})
+	db.AutoMigrate(
+		&models.Fact{},
+		&models.Bank{},
+		&models.Card{},
+		&models.Client{},
+	)
 
 	DB = Dbinstance{
 		Db: db,
