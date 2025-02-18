@@ -1,8 +1,6 @@
 package models
 
 import (
-	"math/big"
-
 	"gorm.io/gorm"
 )
 
@@ -14,9 +12,10 @@ type Fact struct {
 }
 
 type Card struct {
-	gorm.Model         // Adds ID, CreatedAt, UpdatedAt, DeletedAt fields
-	CardNumber big.Int `json:"card_number" gorm:"type:varchar(20);unique;not null"` // Example: "1234-5678-9012-3456"
-	ExpiryDate string  `json:"expiry_date" gorm:"type:varchar(10);not null"`        // Example: "12/25"
+	gorm.Model        // Adds ID, CreatedAt, UpdatedAt, DeletedAt fields
+	CardNumber int64  `json:"card_number" gorm:"type:numeric;unique;not null"` // Example: "1234-5678-9012-3456"
+	ExpiryDate string `json:"expiry_date" gorm:"type:varchar(10);not null"`    // Example: "12/25"
+	Total      int64  `json:"total" gorm:"type:numeric;not null;default:0"`
 
 	BankID uint `json:"bank_id"`
 	Bank   Bank `json:"bank"`
@@ -40,4 +39,19 @@ type Bank struct {
 	Name    string   `json:"name" gorm:"type:varchar(255);not null"`
 	Clients []Client `gorm:"many2many:bank_clients;"`
 	Cards   []Card   `gorm:"foreignKey:BankID"`
+}
+
+//
+//
+
+type CreateBankClientRequest struct {
+	ClientEmail string `json:"client_email"`
+	BankName    string `json:"bank_name"`
+}
+type CreateCardRequest struct {
+	CardNumber  string `json:"card_number"`
+	ExpiryDate  string `json:"expiry_date"`
+	Total       string `json:"total"`
+	BankName    string `json:"bank_name"`
+	ClientEmail string `json:"client_email"`
 }

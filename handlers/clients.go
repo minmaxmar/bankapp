@@ -25,7 +25,7 @@ func CreateClient(c *fiber.Ctx) error {
 	log.Debug().Str("Body", string(c.Body())).Msg("Request received")
 	if err := c.BodyParser(client); err != nil {
 		log.Error().Err(err).Msg("Error parsing body")
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),
 		})
 	}
@@ -47,19 +47,14 @@ func CreateClient(c *fiber.Ctx) error {
 	return c.Status(200).JSON(client)
 }
 
-type CreateBankClientRequest struct {
-	ClientEmail string `json:"client_email"`
-	BankName    string `json:"bank_name"`
-}
-
 func CreateBankClient(c *fiber.Ctx) error {
 
-	req := new(CreateBankClientRequest)
+	req := new(models.CreateBankClientRequest)
 
 	log.Debug().Str("Body", string(c.Body())).Msg("Request received")
 	if err := c.BodyParser(req); err != nil {
 		log.Error().Err(err).Msg("Error parsing body")
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": err.Error(),
 		})
 	}
@@ -83,7 +78,7 @@ func CreateBankClient(c *fiber.Ctx) error {
 			"message": fmt.Sprintf("Error finding client: %s", result.Error.Error()),
 		})
 	}
-	// find bank
+	// find bank     TODO : move to models
 	var bank models.Bank
 	result = database.DB.Db.Where("name = ?", req.BankName).First(&bank)
 	if result.Error != nil {

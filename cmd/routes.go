@@ -13,4 +13,10 @@ func setupRoutes(app *fiber.App) {
 	app.Get("/banks", handlers.ListBanks)
 	app.Post("/bank", handlers.CreateBank)
 
+	app.Get("/clients", handlers.ListClients)
+	app.Post("/client", handlers.CreateClient)
+	app.Post("/clientbank", handlers.CreateBankClient)
+
+	app.Post("/card", handlers.CreateCard)
+
 }
