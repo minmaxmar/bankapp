@@ -8,6 +8,7 @@ import (
 	"github.com/minmaxmar/bankapp/models"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func ListClients(c *fiber.Ctx) error {
@@ -65,10 +66,19 @@ func CreateBankClient(c *fiber.Ctx) error {
 			"message": "Client email and Bank name are required.",
 		})
 	}
+	// start transaction
+	trans := database.DB.Db.Begin()
+	if trans.Error != nil {
+		log.Error().Err(trans.Error).Msg("Failed to start transaction")
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to start transaction")
+	}
+	defer trans.Rollback()
+
 	// find client
 	var client models.Client
-	result := database.DB.Db.Where("email = ?", req.ClientEmail).First(&client)
+	result := trans.Clauses(clause.Locking{Strength: "UPDATE"}).Where("email = ?", req.ClientEmail).First(&client)
 	if result.Error != nil {
+		trans.Rollback()
 		if result.Error == gorm.ErrRecordNotFound {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"message": fmt.Sprintf("Client with email '%s' not found.", req.ClientEmail),
@@ -80,8 +90,9 @@ func CreateBankClient(c *fiber.Ctx) error {
 	}
 	// find bank     TODO : move to models
 	var bank models.Bank
-	result = database.DB.Db.Where("name = ?", req.BankName).First(&bank)
+	result = trans.Clauses(clause.Locking{Strength: "UPDATE"}).Where("name = ?", req.BankName).First(&bank)
 	if result.Error != nil {
+		trans.Rollback()
 		if result.Error == gorm.ErrRecordNotFound {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"message": fmt.Sprintf("Bank with name '%s' not found.", req.BankName),
@@ -96,6 +107,7 @@ func CreateBankClient(c *fiber.Ctx) error {
 	exists := database.DB.Db.Model(&client).Association("Banks").Find(&existingClientBank, bank.ID)
 	if exists == nil {
 		if existingClientBank.ID == bank.ID {
+			trans.Rollback()
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 				"message": fmt.Sprintf("Client with email '%s' is already a client of bank '%s'.", req.ClientEmail, req.BankName),
 			})
@@ -104,8 +116,17 @@ func CreateBankClient(c *fiber.Ctx) error {
 	// update
 	err := database.DB.Db.Model(&client).Association("Banks").Append(&bank)
 	if err != nil {
+		trans.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": fmt.Sprintf("Error creating bank-client relationship: %s", err.Error()),
+		})
+	}
+	// commit
+	if err := trans.Commit().Error; err != nil {
+		trans.Rollback()
+		log.Error().Err(err).Msg("Error committing transaction")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": fmt.Sprintf("Error committing transaction"),
 		})
 	}
 
