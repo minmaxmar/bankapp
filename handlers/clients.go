@@ -104,8 +104,7 @@ func CreateBankClient(c *fiber.Ctx) error {
 	}
 	// if exists
 	var existingClientBank models.Bank
-	exists := database.DB.Db.Model(&client).Association("Banks").Find(&existingClientBank, bank.ID)
-	if exists == nil {
+	if exists := trans.Clauses(clause.Locking{Strength: "UPDATE"}).Model(&client).Association("Banks").Find(&existingClientBank, bank.ID); exists != nil {
 		if existingClientBank.ID == bank.ID {
 			trans.Rollback()
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
@@ -114,7 +113,7 @@ func CreateBankClient(c *fiber.Ctx) error {
 		}
 	}
 	// update
-	err := database.DB.Db.Model(&client).Association("Banks").Append(&bank)
+	err := trans.Model(&client).Association("Banks").Append(&bank)
 	if err != nil {
 		trans.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
